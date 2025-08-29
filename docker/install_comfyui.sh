@@ -59,6 +59,8 @@ fi
 
 export PATH="$(dirname "$UV_CMD"):$PATH"
 echo "Detected uv command at: $UV_CMD"
+UV_CACHE_DIR="/tmp"
+echo "UV_CACHE_DIR at: $UV_CACHE_DIR"
 
 # Install packages again to ensure all are installed correctly
 "$UV_CMD" pip install --system -r "$COMFYUI_HOME/requirements.txt"
