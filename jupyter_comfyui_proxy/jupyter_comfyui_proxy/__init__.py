@@ -24,6 +24,7 @@ def setup_comfyui_server():
             os.path.join(COMFYUI_PATH, "main.py"),
             "--listen=0.0.0.0",
             f"--port={port}",
+            "--enable-manager"
         ]
 
     def _get_timeout(default: int = 30) -> float:
