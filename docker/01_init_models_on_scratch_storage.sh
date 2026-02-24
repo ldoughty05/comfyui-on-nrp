@@ -1,4 +1,5 @@
 #!/bin/bash
+# 01_init_models_on_scratch_storage.sh
 set -e
 
 NB_USER=${NB_USER:-jovyan}

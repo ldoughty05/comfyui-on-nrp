@@ -1,4 +1,5 @@
 #!/bin/bash
+# 00_install_comfyui.sh
 set -ex
 
 export NB_USER=${NB_USER:-"jovyan"}
