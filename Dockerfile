@@ -18,10 +18,10 @@ RUN mkdir -p /usr/local/bin/start-notebook.d
 ADD docker/sourced_comfyui.sh /usr/local/bin/start-notebook.d/sourced_comfyui.sh
 RUN chmod +x /usr/local/bin/start-notebook.d/sourced_comfyui.sh
 
-ADD docker/init_models_on_scratch_storage.sh /usr/local/bin/start-notebook.d/init_models_on_scratch_storage.sh
-RUN chmod +x /usr/local/bin/start-notebook.d/init_models_on_scratch_storage.sh
-
 ADD docker/install_comfyui.sh /opt/install_comfyui.sh
 RUN chmod +x /opt/install_comfyui.sh
+
+ADD docker/init_models_on_scratch_storage.sh /usr/local/bin/start-notebook.d/init_models_on_scratch_storage.sh
+RUN chmod +x /usr/local/bin/start-notebook.d/init_models_on_scratch_storage.sh
 
 USER $NB_USER
