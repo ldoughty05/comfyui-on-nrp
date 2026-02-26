@@ -7,4 +7,4 @@ if [ -z "$NB_USER" ]; then
 fi
 
 # Run /opt/install_comfyui.sh as $NB_USER
-sudo -u "$NB_USER" /opt/00_install_comfyui.sh
+sudo -u "$NB_USER" /opt/install_comfyui.sh
