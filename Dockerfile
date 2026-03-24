@@ -9,8 +9,6 @@ ENV PATH="$PATH:$COMFYUI_PATH"
 ENV COMFYUI_SESSION_TIMEOUT=600
 ENV UV_CACHE_DIR="$COMFYUI_PATH"
 
-RUN apt-get update && apt-get install -y rsync && rm -rf /var/lib/apt/lists/*
-
 ADD jupyter_comfyui_proxy /home/extensions/jupyter_comfyui_proxy
 RUN pip install uv /home/extensions/jupyter_comfyui_proxy/.
 
