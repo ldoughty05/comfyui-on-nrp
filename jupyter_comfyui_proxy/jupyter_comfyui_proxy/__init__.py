@@ -1,3 +1,4 @@
+#jupyter_comfyui_proxy/__init__.py
 import os
 import logging
 
