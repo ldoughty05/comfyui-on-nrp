@@ -5,12 +5,22 @@ FROM quay.io/jupyter/pytorch-notebook:cuda12-latest
 USER root
 
 ENV COMFYUI_PATH=/home/$NB_USER/ComfyUI
+ENV COMFYUI_TEMPLATE_DIR=/opt/comfyui-template
 ENV PATH="$PATH:$COMFYUI_PATH"
 ENV COMFYUI_SESSION_TIMEOUT=600
-ENV UV_CACHE_DIR="$COMFYUI_PATH"
+ENV UV_CACHE_DIR=/opt/conda/.uv-cache
+
+RUN apt-get update && apt-get install -y git rsync && rm -rf /var/lib/apt/lists/*
 
 ADD jupyter_comfyui_proxy /home/extensions/jupyter_comfyui_proxy
 RUN pip install uv /home/extensions/jupyter_comfyui_proxy/.
+
+# Preinstall ComfyUI into the image so startup avoids git clone + dependency install.
+RUN mkdir -p "$UV_CACHE_DIR" \
+    && git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_TEMPLATE_DIR" \
+    && uv pip install -v --system -r "$COMFYUI_TEMPLATE_DIR/requirements.txt" \
+    && uv pip install -v --system comfyui-manager \
+    && chown -R ${NB_UID}:${NB_GID} "$COMFYUI_TEMPLATE_DIR" "$UV_CACHE_DIR"
 
 # Configure Jupyter to run comfyui install script at startup
 RUN mkdir -p /usr/local/bin/start-notebook.d
