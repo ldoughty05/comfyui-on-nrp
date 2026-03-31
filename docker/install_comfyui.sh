@@ -32,3 +32,15 @@ else
     rsync -a --delete "$COMFYUI_TEMPLATE_DIR/" "$COMFYUI_HOME/"
     echo "ComfyUI bootstrap complete."
 fi
+
+MANAGER_CONFIG_DIR="/home/$NB_USER/ComfyUI/user/__manager"
+MANAGER_CONFIG="$MANAGER_CONFIG_DIR/config.ini"
+
+if [ ! -f "$MANAGER_CONFIG" ]; then
+    echo "Writing default ComfyUI-Manager config..."
+    mkdir -p "$MANAGER_CONFIG_DIR"
+    cp /opt/comfyui-manager-config.ini "$MANAGER_CONFIG"
+    echo "ComfyUI-Manager config written."
+else
+    echo "ComfyUI-Manager config already exists, skipping."
+fi

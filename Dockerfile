@@ -18,8 +18,8 @@ RUN pip install uv /home/extensions/jupyter_comfyui_proxy/.
 # Preinstall ComfyUI into the image so startup avoids git clone + dependency install.
 RUN mkdir -p "$UV_CACHE_DIR" \
     && git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_TEMPLATE_DIR" \
-    && git clone https://github.com/ltdrdata/ComfyUI-Manager "$COMFYUI_TEMPLATE_DIR/custom_nodes/comfyui-manager" \
     && uv pip install -v --system -r "$COMFYUI_TEMPLATE_DIR/requirements.txt" \
+    && uv pip install -v --system comfyui-manager \
     && chown -R ${NB_UID}:${NB_GID} "$COMFYUI_TEMPLATE_DIR" "$UV_CACHE_DIR"
 
 # Configure Jupyter to run comfyui install script at startup
@@ -27,6 +27,8 @@ RUN mkdir -p /usr/local/bin/start-notebook.d
 
 ADD docker/sourced_comfyui.sh /usr/local/bin/start-notebook.d/sourced_comfyui.sh
 RUN chmod +x /usr/local/bin/start-notebook.d/sourced_comfyui.sh
+
+ADD docker/comfyui_manager_config.ini /opt/comfyui-manager-config.ini
 
 ADD docker/install_comfyui.sh /opt/install_comfyui.sh
 RUN chmod +x /opt/install_comfyui.sh
