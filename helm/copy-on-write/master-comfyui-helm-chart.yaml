@@ -1,0 +1,181 @@
+# helm upgrade --cleanup-on-fail --install jhub jupyterhub/jupyterhub --namespace carson-center --version=3.3.7 --values master-comfyui-helm-chart.yaml 
+# kubectl exec -it jupyter-ldoughty2-40huskers-2eunl-2eedu -n carson-center -- /bin/bash
+cull:
+  concurrency: 10
+  enabled: true
+  every: 600
+  maxAge: 0
+  removeNamedServers: false
+  timeout: 3600
+  users: false
+hub:
+  extraEnv:
+    OAUTH_CLIENT_ID:
+      valueFrom:
+        secretKeyRef:
+          key: authentik_client_id
+          name: jupyterhub-oauth
+    OAUTH_CLIENT_SECRET:
+      valueFrom:
+        secretKeyRef:
+          key: authentik_client_secret
+          name: jupyterhub-oauth
+    PROXY_SECRET_TOKEN:
+      valueFrom:
+        secretKeyRef:
+          key: proxy_secret_token
+          name: jupyterhub-oauth
+  config:
+    OAuthenticator:
+      login_service: "Authentik" # This is what shows on JH UI
+      oauth_callback_url: "https://carson-jh.nrp-nautilus.io/hub/oauth_callback" # This is inputted by user
+      authorize_url: "https://authentik.nrp-nautilus.io/application/o/authorize/" # This is provided by Authentik
+      token_url: "https://authentik.nrp-nautilus.io/application/o/token/"  # This is provided by Authentik
+      userdata_url: "https://authentik.nrp-nautilus.io/application/o/userinfo/"  # This is provided by Authentik
+      client_id: "$(OAUTH_CLIENT_ID)"  # This is provided by Authentik
+      client_secret: "$(OAUTH_CLIENT_SECRET)"  # This is provided by Authentik
+      username_claim: "email"
+      allow_all: true
+    JupyterHub:
+      admin_access: true
+      admin_users: ["ldoughty2@unl.edu", "ldoughty2@huskers.unl.edu"]
+      authenticator_class: oauthenticator.generic.GenericOAuthenticator
+    KubeSpawner:
+      start_timeout: 3600 # seconds
+      http_timeout: 3600 # seconds
+
+  service:
+    type: ClusterIP
+    annotations: {}
+    ports:
+      nodePort:
+    loadBalancerIP:
+  deploymentStrategy:
+    type: Recreate
+  db:
+    type: sqlite-pvc
+    pvc:
+      accessModes:
+        - ReadWriteOnce
+      storage: 1Gi
+      storageClassName: rook-ceph-block
+  resources:
+    limits:
+      cpu: "2"
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  networkPolicy:
+    enabled: false
+ingress:
+  annotations:
+    kubernetes.io/ingress.class: haproxy
+  enabled: true
+  hosts:
+  - carson-jh.nrp-nautilus.io
+  pathSuffix: ""
+  tls:
+  - hosts:
+    - carson-jh.nrp-nautilus.io
+# prePuller relates to the hook|continuous-image-puller DaemonsSets
+prePuller:
+  hook:
+    enabled: false
+  continuous:
+    enabled: false
+proxy:
+  chp:
+    resources:
+      limits:
+        cpu: "6"
+        memory: 10Gi
+      requests:
+        cpu: "1"
+        memory: 512Mi
+  secretToken: "$(PROXY_SECRET_TOKEN)"
+  service:
+    type: ClusterIP
+scheduling:
+  userScheduler:
+    enabled: false
+  userPlaceholder:
+    enabled: false
+singleuser:
+  cloudMetadata:
+    blockWithIptables: false
+  cmd: null
+  cpu:
+    guarantee: 8
+    limit: 8
+  defaultUrl: /lab
+  extraEnv:
+    GRANT_SUDO: "yes"
+  extraNodeAffinity:
+    required:
+    - matchExpressions:
+      - key: nvidia.com/gpu.product
+        operator: In
+        values:
+        - NVIDIA-A10
+        - NVIDIA-GeForce-RTX-3090
+        - NVIDIA-GeForce-RTX-4090
+        - NVIDIA-L40S
+  extraPodConfig:
+    securityContext:
+      fsGroup: 100
+      fsGroupChangePolicy: OnRootMismatch
+  extraTolerations:
+  - effect: NoSchedule
+    key: nautilus.io/reservation
+    operator: Equal
+    value: unl
+  fsGid: 100
+  image:
+    name: quay.io/jupyter/scipy-notebook
+    tag: "2024-04-22"
+  memory:
+    guarantee: 32G
+    limit: 32G
+  networkPolicy:
+    enabled: false
+  profileList:
+  - display_name: ComfyUI Master Image
+    default: true
+    kubespawner_override:
+      extra_resource_guarantees: {}
+      extra_resource_limits:
+        nvidia.com/gpu: "1"
+      image_spec: ghcr.io/ldoughty05/ldoughty05/comfyui-on-nrp:latest
+      volumes:
+      - name: shared-comfyui-models-unl
+        persistentVolumeClaim:
+          claimName: shared-comfyui-models-unl
+      volume_mounts:
+      - name: shared-comfyui-models-unl
+        mountPath: /mnt/shared-models
+        readOnly: false
+  startTimeout: 3600
+  storage:
+    capacity: 200Gi
+    dynamic:
+      pvcNameTemplate: master-claim-central-ceph-block-{username}{servername}
+      storageAccessModes:
+      - ReadWriteOnce
+      storageClass: rook-ceph-block-central
+      volumeNameTemplate: volume-{username}{servername}
+    homeMountPath: /home/jovyan
+    type: dynamic
+  uid: 0
+
+
+# mount PVC clone of shared models, and their changes only save as changes to what they cloned. 
+# dataSource:
+#   kind:
+#   name:
+
+# bring back the small GPUS
+
+# md document improvements ive made, future work. Usability for his class.
+# add the comfy clone to the master image.
+# put a pull rqequest for comfy.

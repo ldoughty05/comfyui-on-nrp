@@ -1,0 +1,35 @@
+# shared-comfyui-model-storage-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: common-comfyui-models-central
+  namespace: carson-center
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: rook-ceph-block-central
+  resources:
+    requests:
+      storage: 200Gi  # size to fit your models
+
+
+# StorageClass	  Region	          AccessModes	    Storage Type	    Replication factor
+
+# linstor-ha	    3 replicas spread ReadWriteOnce	  Mixed	            3x
+#                 through different 
+#                 regions	
+# linstor-unl	    US Central / UNL	ReadWriteOnce	  Spinning drives   (raid-z2 storage)
+#                                                   RAID 10	1x
+# linstor-sdsu	  US West / SDSU	  ReadWriteOnce	  NVME	            2x
+# linstor-igrok	  US West / UCSD	  ReadWriteOnce	  NVME	            2x
+
+
+# These are all ReadWriteOnce, so we will have issues when pods are on different nodes trying to read from this.
+# Solution is to use CephFS which is ReadWriteMany.
+
+
+
+# Try linstor from SDSU. We think the unl issue is a quota thing.
+# https://nrp.ai/documentation/userdocs/storage/linstor/
+
+# Talk to Derek about it not making a persistant volume
