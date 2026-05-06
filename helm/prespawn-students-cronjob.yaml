@@ -1,0 +1,38 @@
+# kubectl apply -f prespawn-students-cronjob.yaml
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: prespawn-students-cronjob
+  namespace: carson-center
+spec:
+  schedule: "20 15 * * 2,4,5"  # 9:20 AM CST (UTC-6) every Tue, Thu, Fri
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: prespawner
+            image: python:3.11-slim
+            command: ["sh", "-c", "pip install requests -q && python /scripts/prespawn.py"]
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "128Mi"
+              limits:
+                cpu: "200m"
+                memory: "256Mi"
+            env:
+            - name: JUPYTERHUB_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: prespawn-secret
+                  key: token
+            volumeMounts:
+            - name: script
+              mountPath: /scripts
+          volumes:
+          - name: script
+            configMap:
+              name: prespawn-script
+          restartPolicy: OnFailure

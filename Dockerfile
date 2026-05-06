@@ -33,4 +33,7 @@ ADD docker/comfyui_manager_config.ini /opt/comfyui-manager-config.ini
 ADD docker/install_comfyui.sh /opt/install_comfyui.sh
 RUN chmod +x /opt/install_comfyui.sh
 
+ADD docker/symlink_shared_models.sh /usr/local/bin/start-notebook.d/symlink_shared_models.sh
+RUN chmod +x /usr/local/bin/start-notebook.d/symlink_shared_models.sh
+
 USER $NB_USER

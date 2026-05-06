@@ -1,0 +1,229 @@
+# helm upgrade --cleanup-on-fail --install jhub jupyterhub/jupyterhub --namespace carson-center --version=3.3.7 --values copy-on-write-comfyui-helm-chart.yaml 
+# kubectl exec -it jupyter-ldoughty2-40huskers-2eunl-2eedu -n carson-center -- /bin/bash
+cull:
+  concurrency: 10
+  enabled: true
+  every: 600
+  maxAge: 0
+  removeNamedServers: false
+  timeout: 3600
+  users: false
+ingress:
+  annotations:
+    kubernetes.io/ingress.class: haproxy
+  enabled: true
+  hosts:
+  - carson-jh.nrp-nautilus.io
+  pathSuffix: ""
+  tls:
+  - hosts:
+    - carson-jh.nrp-nautilus.io
+# prePuller relates to the hook|continuous-image-puller DaemonsSets
+prePuller:
+  hook:
+    enabled: false
+  continuous:
+    enabled: false
+proxy:
+  chp:
+    resources:
+      limits:
+        cpu: "6"
+        memory: 10Gi
+      requests:
+        cpu: "1"
+        memory: 512Mi
+  secretToken: 'c8...636'
+  service:
+    type: ClusterIP
+scheduling:
+  userScheduler:
+    enabled: false
+  userPlaceholder:
+    enabled: false
+singleuser:
+  cloudMetadata:
+    blockWithIptables: false
+  cmd: null
+  cpu:
+    guarantee: 8
+    limit: 8
+  defaultUrl: /lab
+  extraEnv:
+    GRANT_SUDO: "yes"
+  extraNodeAffinity:
+    required:
+    - matchExpressions:
+      - key: nvidia.com/gpu.product
+        operator: In
+        values:
+        - NVIDIA-A10
+        - NVIDIA-GeForce-RTX-3090
+        - NVIDIA-GeForce-RTX-4090
+        - NVIDIA-L40S
+  extraPodConfig:
+    securityContext:
+      fsGroup: 100
+      fsGroupChangePolicy: OnRootMismatch
+  extraTolerations:
+  - effect: NoSchedule
+    key: nautilus.io/reservation
+    operator: Equal
+    value: unl
+  fsGid: 100
+  image:
+    name: quay.io/jupyter/scipy-notebook
+    tag: "2024-04-22"
+  memory:
+    guarantee: 32G
+    limit: 32G
+  networkPolicy:
+    enabled: false
+  profileList:
+  - display_name: ComfyUI (Cloned Common Image)
+    default: true
+    kubespawner_override:
+      extra_resource_guarantees: {}
+      extra_resource_limits:
+        nvidia.com/gpu: "1"
+      image_spec: ghcr.io/ldoughty05/ldoughty05/comfyui-on-nrp:latest # the master pvc already have the repo cloned
+  startTimeout: 3600
+  storage:
+    capacity: 200Gi
+    dynamic:
+      pvcNameTemplate: copy-claim-central-ceph-block-{username}{servername}
+      storageAccessModes:
+      - ReadWriteOnce
+      storageClass: rook-ceph-block-central
+      volumeNameTemplate: volume-{username}{servername}
+      # dataSource: # this isn't a supported field for dynamic storage ):
+      #   kind: PersistentVolumeClaim
+      #   name: master-claim-central-ceph-block-ldoughty2-40huskers-2eunl-2eedu
+    homeMountPath: /home/jovyan
+    type: dynamic
+  uid: 0
+hub:
+  extraEnv:
+    OAUTH_CLIENT_ID:
+      valueFrom:
+        secretKeyRef:
+          key: authentik_client_id
+          name: jupyterhub-oauth
+    OAUTH_CLIENT_SECRET:
+      valueFrom:
+        secretKeyRef:
+          key: authentik_client_secret
+          name: jupyterhub-oauth
+    PROXY_SECRET_TOKEN:
+      valueFrom:
+        secretKeyRef:
+          key: proxy_secret_token
+          name: jupyterhub-oauth
+  config:
+    OAuthenticator:
+      login_service: "Authentik" # This is what shows on JH UI
+      oauth_callback_url: "https://carson-jh.nrp-nautilus.io/hub/oauth_callback" # This is inputted by user
+      authorize_url: "https://authentik.nrp-nautilus.io/application/o/authorize/" # This is provided by Authentik
+      token_url: "https://authentik.nrp-nautilus.io/application/o/token/"  # This is provided by Authentik
+      userdata_url: "https://authentik.nrp-nautilus.io/application/o/userinfo/"  # This is provided by Authentik
+      client_id: "$(OAUTH_CLIENT_ID)"  # This is provided by Authentik
+      client_secret: "$(OAUTH_CLIENT_SECRET)"  # This is provided by Authentik
+      username_claim: "email"
+      allow_all: true
+    JupyterHub:
+      admin_access: true
+      admin_users: ["ldoughty2@unl.edu", "ldoughty2@huskers.unl.edu"]
+      authenticator_class: oauthenticator.generic.GenericOAuthenticator
+    KubeSpawner:
+      start_timeout: 3600 # seconds
+      http_timeout: 3600 # seconds
+
+  service:
+    type: ClusterIP
+    annotations: {}
+    ports:
+      nodePort:
+    loadBalancerIP:
+  deploymentStrategy:
+    type: Recreate
+  db:
+    type: sqlite-pvc
+    pvc:
+      accessModes:
+        - ReadWriteOnce
+      storage: 1Gi
+      storageClassName: rook-ceph-block
+  resources:
+    limits:
+      cpu: "2"
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  networkPolicy:
+    enabled: false
+
+  extraConfig: 
+    clonePvc: |
+      import asyncio
+      from kubespawner import KubeSpawner
+      from kubernetes_asyncio import client, config
+      from kubernetes_asyncio.client.exceptions import ApiException
+
+      MASTER_PVC = "master-claim-central-ceph-block-ldoughty2-40huskers-2eunl-2eedu"
+      CLONE_PROFILE = "ComfyUI (Cloned Common Image)"
+
+      async def clone_pvc_hook(spawner: KubeSpawner):
+        profile = (spawner.user_options or {}).get("profile", "")
+        if profile != CLONE_PROFILE:
+          return
+
+        username = spawner.user.name
+        namespace = spawner.namespace
+        server_name = spawner.name or ""
+        pvc_name = f"copy-claim-central-ceph-block-{username}{server_name}"
+
+        await config.load_incluster_config()
+        api = client.CoreV1Api()
+
+        try:
+          await api.read_namespaced_persistent_volume_claim(pvc_name, namespace)
+          spawner.log.info(f"Clone PVC {pvc_name} already exists, skipping.")
+          return
+        except ApiException as e:
+          if e.status != 404:
+            raise
+
+        spawner.log.info(f"Creating COW clone PVC {pvc_name} from {MASTER_PVC}")
+        pvc_body = client.V1PersistentVolumeClaim(
+          metadata=client.V1ObjectMeta(name=pvc_name, namespace=namespace),
+          spec=client.V1PersistentVolumeClaimSpec(
+            access_modes=["ReadWriteOnce"],
+            storage_class_name="rook-ceph-block-central",
+            resources=client.V1ResourceRequirements(
+              requests={"storage": "200Gi"}
+            ),
+            data_source=client.V1TypedLocalObjectReference(
+              api_group="",
+              kind="PersistentVolumeClaim",
+              name=MASTER_PVC,
+            ),
+          ),
+        )
+        await api.create_namespaced_persistent_volume_claim(namespace, pvc_body)
+        spawner.log.info(f"Clone PVC {pvc_name} created successfully.")
+
+      c.KubeSpawner.pre_spawn_hook = clone_pvc_hook
+
+
+
+# mount PVC clone of shared models, and their changes only save as changes to what they cloned. 
+# dataSource:
+#   kind:
+#   name:
+
+# bring back the small GPUS
+
+# md document improvements ive made, future work. Usability for his class.
+# add the comfy clone to the master image.
+# put a pull rqequest for comfy.

@@ -29,7 +29,7 @@ if [ -d "$COMFYUI_HOME" ]; then
 else
     echo "Bootstrapping ComfyUI from image template..."
     mkdir -p "$COMFYUI_HOME"
-    rsync -a --delete "$COMFYUI_TEMPLATE_DIR/" "$COMFYUI_HOME/"
+    rsync -a "$COMFYUI_TEMPLATE_DIR/" "$COMFYUI_HOME/"
     echo "ComfyUI bootstrap complete."
 fi
 
